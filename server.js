@@ -47,6 +47,9 @@ app.post('/webhook', (req, res) => {
     // ALWAYS return 200 OK immediately to decouple and prevent Meta timeout
     res.status(200).send({ status: "success" });
     
+    console.log("=== INCOMING WEBHOOK ===");
+    console.log(JSON.stringify(req.body, null, 2));
+    
     // Process async
     processWebhook(req.body).catch(console.error);
 });
@@ -238,13 +241,15 @@ async function handleAdminCommand(adminId, commandText) {
     console.log(`[Admin Command] Added rule: ${rule}`);
 }
 
+const { getSystemPrompt } = require('./systemPrompt');
+
 async function buildSystemPrompt(type = "dm") {
     const { data } = await supabase
         .from('rules')
         .select('rule_text')
         .order('created_at', { ascending: true });
         
-    let basePrompt = `You are a helpful, friendly customer service agent managing an Instagram account.\n`;
+    let basePrompt = getSystemPrompt() + `\n\n`;
     
     if (type === "story_mention") {
         basePrompt += `The user has just mentioned you in their Instagram story. Reply warmly, thank them for the mention, and be enthusiastic. Keep it concise.\n`;
