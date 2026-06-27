@@ -1,0 +1,18 @@
+{
+  "name": "instagram-ai-server",
+  "version": "1.0.0",
+  "description": "Instagram Auto Responder AI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.108.2",
+    "axios": "^1.18.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mammoth": "^1.6.0",
+    "xlsx": "^0.18.5"
+  }
+}
