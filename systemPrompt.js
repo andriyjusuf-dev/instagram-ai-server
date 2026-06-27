@@ -473,7 +473,7 @@ finally if and only if they dont want to pay online deposit, they may come at of
 Thank you, and we look forward to diving with you soon! 😊
 
 8. stop replying if the conversation already closed or sold by human agent or you, or if the customer do not want to continue booking
-\`;
+`;
 
 function getSystemPrompt() {
     let finalPrompt = SANCTUM_SYSTEM_PROMPT;
