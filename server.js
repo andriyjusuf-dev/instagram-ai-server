@@ -31,6 +31,62 @@ function cacheDelete(key) { memoryCache.delete(key); }
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ==========================================
+// 0. PRIVACY POLICY PAGE (GET)
+// ==========================================
+app.get('/privacy', (req, res) => {
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Privacy Policy - Sanctum Dive AI</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+            h1 { color: #0056b3; }
+            h3 { margin-top: 30px; color: #222; }
+        </style>
+    </head>
+    <body>
+        <h1>Privacy Policy for Sanctum Dive AI Assistant</h1>
+        <p><strong>Effective Date:</strong> June 27, 2026</p>
+        <p>Sanctum Dive ("we", "us", or "our") operates an automated AI assistant on Instagram to provide fast, reliable customer service and booking information to our guests. This Privacy Policy explains how we collect, use, and protect your information when you interact with our Instagram account (@sanctumnusapenida).</p>
+        
+        <h3>1. Information We Collect</h3>
+        <p>When you send a direct message (DM) or comment on our Instagram page, our automated system receives the following information provided by the Meta Graph API:</p>
+        <ul>
+            <li>Your Instagram Username and basic profile information.</li>
+            <li>The contents of the messages you send to us.</li>
+            <li>The timestamp of your messages.</li>
+        </ul>
+
+        <h3>2. How We Use Your Information</h3>
+        <p>We only use your information for the following purposes:</p>
+        <ul>
+            <li>To automatically read and respond to your inquiries regarding our diving packages, schedules, and services.</li>
+            <li>To maintain a temporary context of our conversation so our AI assistant can provide relevant and accurate follow-up answers.</li>
+            <li>To assist our human customer service agents in seamlessly taking over conversations when needed.</li>
+        </ul>
+
+        <h3>3. Data Sharing and Protection</h3>
+        <p>We take your privacy seriously.</p>
+        <ul>
+            <li><strong>We do not sell, rent, or share your personal data with any third parties.</strong></li>
+            <li>Conversation data is processed through secure, industry-standard AI and database providers strictly for the purpose of generating automated replies.</li>
+            <li>All data is securely stored and is only accessible by authorized Sanctum Dive administrators.</li>
+        </ul>
+
+        <h3>4. Data Retention and Deletion</h3>
+        <p>Your conversation history is stored temporarily to facilitate your booking and inquiry process. If you would like us to delete any automated conversation history associated with your Instagram account from our database, please contact us directly via an Instagram DM or email, and we will promptly remove your data.</p>
+
+        <h3>5. Contact Us</h3>
+        <p>If you have any questions or concerns about this Privacy Policy or how our automated assistant handles your data, please contact us via direct message on Instagram at @sanctumnusapenida.</p>
+    </body>
+    </html>
+    `;
+    res.send(html);
+});
+// ==========================================
 // 1. WEBHOOK VERIFICATION (GET)
 // ==========================================
 app.get('/webhook', (req, res) => {
