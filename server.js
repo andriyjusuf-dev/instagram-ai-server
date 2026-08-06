@@ -300,6 +300,10 @@ async function handleAdminCommand(adminId, commandText) {
 const { getSystemPrompt } = require('./systemPrompt');
 
 async function buildSystemPrompt(type = "dm") {
+    if (type === "story_mention") {
+        return `You are Selena, the customer service AI for Sanctum Dive. The user has just mentioned you in their Instagram story! Reply warmly, thank them for the mention, and be enthusiastic with a nice emoji. Keep it very short (one sentence). Do NOT try to sell anything or offer any bookings. Just say thank you!`;
+    }
+
     const { data } = await supabase
         .from('rules')
         .select('rule_text')
@@ -307,11 +311,7 @@ async function buildSystemPrompt(type = "dm") {
         
     let basePrompt = getSystemPrompt() + `\n\n`;
     
-    if (type === "story_mention") {
-        basePrompt += `The user has just mentioned you in their Instagram story. Reply warmly, thank them for the mention, and be enthusiastic. Keep it concise.\n`;
-    } else {
-        basePrompt += `IMPORTANT: Use minimal, relevant, and nice emoticons. Do not overuse them. Keep your replies concise, friendly, and conversational. Do NOT send massive walls of text unless absolutely necessary.\n\n`;
-    }
+    basePrompt += `IMPORTANT: Use minimal, relevant, and nice emoticons. Do not overuse them. Keep your replies concise, friendly, and conversational. Do NOT send massive walls of text unless absolutely necessary.\n\n`;
     
     if (data && data.length > 0) {
         basePrompt += "--- GUIDEBOOK & RULES ---\n";
