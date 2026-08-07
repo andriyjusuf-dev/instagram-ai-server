@@ -242,7 +242,7 @@ async function getHistory(igUserId) {
         .select('role, message_text')
         .eq('ig_user_id', igUserId)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10); // <--- Changed from 20 to 10 here
         
     if (error) {
         console.error("Supabase Error (getHistory):", error);
@@ -300,6 +300,7 @@ async function handleAdminCommand(adminId, commandText) {
 const { getSystemPrompt } = require('./systemPrompt');
 
 async function buildSystemPrompt(type = "dm") {
+    // This is the new fix for Story Mentions!
     if (type === "story_mention") {
         return `You are Selena, the customer service AI for Sanctum Dive. The user has just mentioned you in their Instagram story! Reply warmly, thank them for the mention, and be enthusiastic with a nice emoji. Keep it very short (one sentence). Do NOT try to sell anything or offer any bookings. Just say thank you!`;
     }
@@ -328,8 +329,15 @@ async function buildSystemPrompt(type = "dm") {
 // 4. GEMINI API LOGIC
 // ==========================================
 async function callGemini(igUserId, type = "dm") {
-    const history = await getHistory(igUserId);
     const systemPrompt = await buildSystemPrompt(type);
+    
+    // For story mentions, do NOT load old conversation history to prevent hallucination!
+    let history;
+    if (type === "story_mention") {
+        history = [{ role: "user", parts: [{ text: "Someone just mentioned us in their Instagram story!" }] }];
+    } else {
+        history = await getHistory(igUserId);
+    }
     
     const payload = {
         system_instruction: { parts: [{ text: systemPrompt }] },
