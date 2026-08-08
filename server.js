@@ -165,15 +165,25 @@ async function handleMessagingEvent(messagingEvent) {
         const isPaused = await checkIsPaused(senderId);
         let contextToSave = textBody;
 
-        // Check for Story Mention
-        if (messageObj.story && messageObj.story.mention) {
-            contextToSave = "[User mentioned us in a story] " + textBody;
+        // Check for Story Mention or Share
+        let isStoryAction = false;
+        if (messageObj.story && messageObj.story.mention) isStoryAction = true;
+        if (messageObj.reply_to && messageObj.reply_to.story && !textBody.trim()) isStoryAction = true;
+        if (messageObj.attachments && messageObj.attachments.length > 0) {
+            const att = messageObj.attachments[0];
+            if (att.type === 'share' || att.type === 'story_mention' || att.type === 'ig_reel') {
+                if (!textBody.trim()) isStoryAction = true; // Only if they didn't type a real question with it
+            }
+        }
+
+        if (isStoryAction) {
+            contextToSave = "[User mentioned or shared our story/post] " + textBody;
             if (!isPaused) {
-                console.log(`[Story Mention] from ${senderId}`);
+                console.log(`[Story Action] from ${senderId}`);
                 await appendHistory(senderId, "user", contextToSave);
                 const geminiReply = await callGemini(senderId, "story_mention");
                 if (geminiReply) {
-                    await sleep(3000); // Small delay
+                    await sleep(3000);
                     await sendInstagramDM(senderId, geminiReply);
                 }
                 return;
