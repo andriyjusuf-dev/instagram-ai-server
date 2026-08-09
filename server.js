@@ -181,10 +181,10 @@ async function handleMessagingEvent(messagingEvent) {
             if (!isPaused) {
                 console.log(`[Story Action] from ${senderId}`);
                 await appendHistory(senderId, "user", contextToSave);
-                const geminiReply = await callGemini(senderId, "story_mention");
-                if (geminiReply) {
+                const aiReply = await generateReply(senderId, "story_mention");
+                if (aiReply) {
                     await sleep(3000);
-                    await sendInstagramDM(senderId, geminiReply);
+                    await sendInstagramDM(senderId, aiReply);
                 }
                 return;
             }
@@ -211,12 +211,12 @@ async function handleMessagingEvent(messagingEvent) {
             await appendHistory(senderId, "user", contextToSave);
         } else {
             await appendHistory(senderId, "user", contextToSave);
-            const geminiReply = await callGemini(senderId, "dm");
-            if (geminiReply) {
+            const aiReply = await generateReply(senderId, "dm");
+            if (aiReply) {
                 // Realistic typing delay
-                const delayMs = Math.min(2000 + (geminiReply.length * 30), 12000);
+                const delayMs = Math.min(2000 + (aiReply.length * 30), 12000);
                 await sleep(delayMs);
-                await sendInstagramDM(senderId, geminiReply);
+                await sendInstagramDM(senderId, aiReply);
             }
         }
     }
@@ -252,7 +252,7 @@ async function getHistory(igUserId) {
         .select('role, message_text')
         .eq('ig_user_id', igUserId)
         .order('created_at', { ascending: false })
-        .limit(10); // <--- Changed from 20 to 10 here
+        .limit(10);
         
     if (error) {
         console.error("Supabase Error (getHistory):", error);
@@ -310,7 +310,6 @@ async function handleAdminCommand(adminId, commandText) {
 const { getSystemPrompt } = require('./systemPrompt');
 
 async function buildSystemPrompt(type = "dm") {
-    // This is the new fix for Story Mentions!
     if (type === "story_mention") {
         return `You are Selena, the customer service AI for Sanctum Dive. The user has just mentioned you in their Instagram story! Reply warmly, thank them for the mention, and be enthusiastic with a nice emoji. Keep it very short (one sentence). Do NOT try to sell anything or offer any bookings. Just say thank you!`;
     }
@@ -336,9 +335,9 @@ async function buildSystemPrompt(type = "dm") {
 }
 
 // ==========================================
-// 4. GEMINI API LOGIC
+// 4. AI API LOGIC
 // ==========================================
-async function callGemini(igUserId, type = "dm") {
+async function generateReply(igUserId, type = "dm") {
     const systemPrompt = await buildSystemPrompt(type);
     
     // For story mentions, do NOT load old conversation history to prevent hallucination!
@@ -349,24 +348,64 @@ async function callGemini(igUserId, type = "dm") {
         history = await getHistory(igUserId);
     }
     
-    const payload = {
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: history
-    };
-
-    try {
-        const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
-            payload
-        );
-        
-        if (response.data.candidates && response.data.candidates.length > 0) {
-            const botReply = response.data.candidates[0].content.parts[0].text;
-            await appendHistory(igUserId, "model", botReply);
-            return botReply;
+    const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
+    let botReply = null;
+    
+    if (provider === 'deepseek') {
+        // Map history to DeepSeek format
+        const messages = [{ role: "system", content: systemPrompt }];
+        for (const msg of history) {
+            messages.push({
+                role: msg.role === 'model' ? 'assistant' : 'user',
+                content: msg.parts[0].text
+            });
         }
-    } catch (error) {
-        console.error("Gemini Error:", error.response ? JSON.stringify(error.response.data) : error.message);
+        
+        try {
+            const response = await axios.post(
+                'https://api.deepseek.com/chat/completions',
+                {
+                    model: 'deepseek-chat',
+                    messages: messages
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            if (response.data.choices && response.data.choices.length > 0) {
+                botReply = response.data.choices[0].message.content;
+            }
+        } catch (error) {
+            console.error("DeepSeek Error:", error.response ? JSON.stringify(error.response.data) : error.message);
+        }
+    } else {
+        // Gemini logic
+        const payload = {
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: history
+        };
+
+        try {
+            const response = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                payload
+            );
+            
+            if (response.data.candidates && response.data.candidates.length > 0) {
+                botReply = response.data.candidates[0].content.parts[0].text;
+            }
+        } catch (error) {
+            console.error("Gemini Error:", error.response ? JSON.stringify(error.response.data) : error.message);
+        }
+    }
+    
+    if (botReply) {
+        await appendHistory(igUserId, "model", botReply);
+        return botReply;
     }
     return null;
 }
@@ -375,22 +414,53 @@ async function generateCommentReply(commentText) {
     const systemPrompt = `You are the friendly owner of an Instagram page. A user just commented on your post.
 Generate a short, positive, and appreciative reply to their comment. Keep it under 2 sentences, use nice emojis. If their comment is negative or toxic, reply with a calm, polite message or a simple acknowledgment.`;
     
-    const payload = {
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: `User's Comment: "${commentText}"` }] }]
-    };
-
-    try {
-        const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
-            payload
-        );
+    const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
+    
+    if (provider === 'deepseek') {
+        const messages = [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `User's Comment: "${commentText}"` }
+        ];
         
-        if (response.data.candidates && response.data.candidates.length > 0) {
-            return response.data.candidates[0].content.parts[0].text;
+        try {
+            const response = await axios.post(
+                'https://api.deepseek.com/chat/completions',
+                {
+                    model: 'deepseek-chat',
+                    messages: messages
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            if (response.data.choices && response.data.choices.length > 0) {
+                return response.data.choices[0].message.content;
+            }
+        } catch (error) {
+            console.error("DeepSeek Comment Reply Error:", error.response ? JSON.stringify(error.response.data) : error.message);
         }
-    } catch (error) {
-        console.error("Gemini Comment Reply Error:", error.response ? JSON.stringify(error.response.data) : error.message);
+    } else {
+        const payload = {
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts: [{ text: `User's Comment: "${commentText}"` }] }]
+        };
+
+        try {
+            const response = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                payload
+            );
+            
+            if (response.data.candidates && response.data.candidates.length > 0) {
+                return response.data.candidates[0].content.parts[0].text;
+            }
+        } catch (error) {
+            console.error("Gemini Comment Reply Error:", error.response ? JSON.stringify(error.response.data) : error.message);
+        }
     }
     return null;
 }
