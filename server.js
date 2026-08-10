@@ -332,9 +332,7 @@ async function buildSystemPrompt(type = "dm") {
     }
     
     return basePrompt;
-}
-
-// ==========================================
+}// ==========================================
 // 4. AI API LOGIC
 // ==========================================
 async function generateReply(igUserId, type = "dm") {
@@ -365,7 +363,7 @@ async function generateReply(igUserId, type = "dm") {
             const response = await axios.post(
                 'https://api.deepseek.com/chat/completions',
                 {
-                    model: 'deepseek-chat',
+                    model: 'deepseek-v4-pro',
                     messages: messages
                 },
                 {
@@ -426,7 +424,7 @@ Generate a short, positive, and appreciative reply to their comment. Keep it und
             const response = await axios.post(
                 'https://api.deepseek.com/chat/completions',
                 {
-                    model: 'deepseek-chat',
+                    model: 'deepseek-v4-pro',
                     messages: messages
                 },
                 {
